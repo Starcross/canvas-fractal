@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>
+      Starcross -  Fractal Generator 
+  </title>
+
+    <style>
+        .fractal_canvas {
+            width:1024px;
+            position:absolute;
+            left:0;
+            right:0;
+            margin-right:auto;
+            margin-left:auto;
+            margin-top: 64px
+        }
+    </style>
+
+
+</head>
+
+<body>
+
+    <div id="overlay">
+        <h2>Fractal Generator</h2>
+         <div id="controls">
+            <label id="zoom_label">Drag an area to zoom in</label>
+            <input id="reset" type="button" value="Reset">
+        </div>
+</h2>
+    </div>
+
+    
+    <canvas id="fractal" style="z-index:1" class="fractal_canvas"
+            width="1024" height="585"></canvas>
+    <canvas id="zoom_overlay" class="fractal_canvas"
+            style="z-index:2;opacity: 0.4; cursor: crosshair;"
+            width="1024" height="585"></canvas>
+    <script src="fractal.js"></script>
+
+
+
+</body>
+
+</html>
