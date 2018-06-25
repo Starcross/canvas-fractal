@@ -73,6 +73,7 @@ function mouseUp() {
 function mouseMove(e) {
   if (dragging) {
     zoombox.w = (e.pageX - this.offsetLeft) - zoombox.startX;
+    if (zoombox.w < 0) return; // Only support drag to right/down for now
     zoombox.h = zoombox.w / (width/height); // force current ratio
     ztx.clearRect(0,0,zoom_canvas.width,zoom_canvas.height);
     ztx.fillRect(zoombox.startX,zoombox.startY,zoombox.w,zoombox.h);
@@ -87,6 +88,8 @@ zoom_canvas.addEventListener('mousemove', mouseMove, false);
 
 function drawFractal(width,height,xoffset,yoffset) {
   // Draw the fractal
+  // Find a reasonable max iter based on zoom level, starting around 128
+  var max_iter = Math.floor(90 * (1/(height/4)) ** 0.5);
   for (px=0; px < canvasWidth; px++) {
     for (py=0; py < canvasHeight; py++) {
       
@@ -95,8 +98,7 @@ function drawFractal(width,height,xoffset,yoffset) {
       var x = 0;
       var y = 0;
       var iter = 0;
-      var max_iter = 128;
-      
+
       while ((x*x + y*y) < 4 && iter < max_iter) {
         var x_temp = x*x - y*y + x0;
         y = 2*x*y + y0;
