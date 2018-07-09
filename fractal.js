@@ -60,6 +60,7 @@ function mouseDown(e) {
 // Redraw with new zoom co-ordinates
 function mouseUp() {
   dragging = false;
+  if (!zoombox.h) return; // Ignore single click
   xoffset = xoffset + width / (zoom_canvas.width / zoombox.startX);
   yoffset = yoffset + height / (zoom_canvas.height / zoombox.startY);
   width = width / (zoom_canvas.width / zoombox.w);
