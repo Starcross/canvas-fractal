@@ -1,124 +1,156 @@
 /** Fractal Generator - HTML5 Canvas and Javascript Demo
-    Alex Luton - aluton@gmail.com
-    Two overlapping divs with ids 'fractal' and a semi transparent 'zoom_overlay',
-    Correct aspect ratio is 7:4
-*/
-var canvas = document.getElementById("fractal");
-var zoom_canvas = document.getElementById("zoom_overlay");
-var canvasWidth = canvas.width;
-var canvasHeight = canvas.height;
-var ctx = canvas.getContext("2d");
-var canvasData = ctx.getImageData(0, 0, canvasWidth, canvasHeight);
-var ztx = zoom_canvas.getContext("2d");
-var zoombox = {};
-var dragging = false;
-var width=0, height=0;
-var xoffset=0, yoffset=0;
-ztx.fillStyle = "#fff"; // fill color
-var reset_button = document.getElementById("reset");
-var zoom_label = document.getElementById("zoom_label");
+ Alex Luton - aluton@gmail.com
+ Requires two overlapping divs with ids 'fractal' and a semi transparent 'zoom_overlay',
+ Correct aspect ratio is 7:4
+ */
 
-function initialiseCoordinates(){
-    width=3.5; height=2;
-    xoffset=0; yoffset=0;
-}
+class Fractal {
 
-// Draw single pixel to the imageData //
-function drawPixel (x, y, r, g, b, a) {
-    var index = (x + y * canvasWidth) * 4;
+    constructor() {
+        const canvas = document.getElementById("fractal")
+        this.zoom_canvas = document.getElementById("zoom_overlay")
+        this.canvasWidth = canvas.width, this.canvasHeight = canvas.height
+        this.ctx = canvas.getContext("2d")
+        this.canvasData = this.ctx.getImageData(0, 0, this.canvasWidth, this.canvasHeight)
+        this.ztx = this.zoom_canvas.getContext("2d")
+        this.zoombox = {}
+        this.dragging = false
+        this.width = 0, this.height = 0
+        this.xoffset = 0, this.yoffset = 0
+        this.ztx.fillStyle = "#fff" // fill color
+        this.reset_button = document.getElementById("reset")
+        this.zoom_label = document.getElementById("zoom_label")
 
-    canvasData.data[index + 0] = r;
-    canvasData.data[index + 1] = g;
-    canvasData.data[index + 2] = b;
-    canvasData.data[index + 3] = a;
-}
+        // Set up listening for zoom box
+        this.zoom_canvas.addEventListener('mousedown', (event) => this.mouseDown(event), false)
+        this.zoom_canvas.addEventListener('mouseup', (event) => this.mouseUp(event), false)
+        this.zoom_canvas.addEventListener('mousemove', (event) => this.mouseMove(event), false)
 
-//Convert hue value to rgb
-function hToRgb(h){
-    if (h == 1)
-      return [0,0,0];
-    var r, g, b;
-    var i = Math.floor(h * 6);
-    var f = h * 6 - i;
-    switch(i % 6){
-        case 0: r = 1, g = f, b = 0; break;
-        case 1: r = f, g = 1, b = 0; break;
-        case 2: r = 0, g = 1, b = f; break;
-        case 3: r = 0, g = f, b = 1; break;
-        case 4: r = f, g = 0, b = 1; break;
-        case 5: r = 1, g = 0, b = f; break;
+        this.reset_button.addEventListener('click', (event) => this.resetFractal(event), false)
+        this.resetFractal()
     }
-    return [r * 255, g * 255, b * 255];
+
+    /* Reset fractal coordinates */
+    initCoordinates() {
+        this.width = 3.5
+        this.height = 2
+        this.xoffset = 0
+        this.yoffset = 0
+    }
+
+    /* Draw single pixel to the imageData */
+    drawPixel(x, y, r, g, b, a) {
+        const index = (x + y * this.canvasWidth) * 4
+
+        this.canvasData.data[index] = r
+        this.canvasData.data[index + 1] = g
+        this.canvasData.data[index + 2] = b
+        this.canvasData.data[index + 3] = a
+    }
+
+    /* Start drag to zoom box */
+    mouseDown(e) {
+        this.zoombox.startX = e.offsetX
+        this.zoombox.startY = e.offsetY
+        this.dragging = true
+    }
+
+    /* Draw the zoom box if mouse is down */
+    mouseMove(e) {
+        if (this.dragging) {
+            this.zoombox.w = e.offsetX - this.zoombox.startX
+            if (this.zoombox.w < 0) return // Only support drag to right/down for now
+            this.zoombox.h = this.zoombox.w / (this.width / this.height) // force current ratio
+            this.ztx.clearRect(0, 0, this.zoom_canvas.width, this.zoom_canvas.height)
+            this.ztx.fillRect(this.zoombox.startX, this.zoombox.startY, this.zoombox.w, this.zoombox.h)
+            this.ztx.strokeRect(this.zoombox.startX, this.zoombox.startY, this.zoombox.w, this.zoombox.h)
+        }
+    }
+
+    /* Redraw with new zoom co-ordinates */
+    mouseUp() {
+        if (!this.zoombox.h) return // Ignore single click with no drag
+
+        this.xoffset = this.xoffset + this.width / (this.zoom_canvas.width / this.zoombox.startX)
+        this.yoffset = this.yoffset + this.height / (this.zoom_canvas.height / this.zoombox.startY)
+        this.width = this.width / (this.zoom_canvas.width / this.zoombox.w)
+        this.height = this.height / (this.zoom_canvas.height / this.zoombox.h)
+
+        this.dragging = false
+        this.ztx.clearRect(0, 0, this.zoom_canvas.width, this.zoom_canvas.height) // Remove the old zoom box
+        this.drawFractal() // Draw with new zoom level
+        this.reset_button.style.display = 'block'
+        this.zoom_label.style.display = 'none'
+    }
+
+    /* Draw the fractal to the canvas */
+    drawFractal() {
+        // Find a reasonable max iter based on zoom level, starting around 128
+        const max_iter = Math.floor(90 * (1 / (this.height / 4)) ** 0.5)
+
+        // Perform the fractal calculations
+        for (let px = 0; px < this.canvasWidth; px++) {
+            for (let py = 0; py < this.canvasHeight; py++) {
+
+                const x0 = (px / this.canvasWidth) * this.width + (this.xoffset - 2.5)
+                const y0 = (py / this.canvasHeight) * this.height + (this.yoffset - 1)
+                let x = 0
+                let y = 0
+                let iter = 0
+
+                while ((x * x + y * y) < 4 && iter < max_iter) {
+                    const x_temp = x * x - y * y + x0
+                    y = 2 * x * y + y0
+                    x = x_temp
+                    iter++
+                }
+
+                const rgb = Fractal.hueToRgb(iter / max_iter)
+                this.drawPixel(px, py, rgb[0], rgb[1], rgb[2], 255)
+            }
+        }
+        this.ctx.putImageData(this.canvasData, 0, 0)
+    }
+
+    /* Reset and draw fractal */
+    resetFractal() {
+        this.initCoordinates()
+        this.drawFractal(this.width, this.height, this.xoffset, this.yoffset)
+        this.reset_button.style.display = 'none'
+        this.zoom_label.style.display = 'block'
+    }
+
+    /* Convert hue value to rgb */
+    static hueToRgb(h) {
+        if (h === 1)
+            return [0, 0, 0]
+        let r=0, g=0, b=0
+        const i = Math.floor(h * 6)
+        const f = h * 6 - i
+        switch (i % 6) {
+            case 0:
+                r = 1, g = f, b = 0
+                break
+            case 1:
+                r = f, g = 1, b = 0
+                break
+            case 2:
+                r = 0, g = 1, b = f
+                break
+            case 3:
+                r = 0, g = f, b = 1
+                break
+            case 4:
+                r = f, g = 0, b = 1
+                break
+            case 5:
+                r = 1, g = 0, b = f
+                break
+        }
+        return [r * 255, g * 255, b * 255]
+    }
+
+
 }
 
-// Begin drawing zoom box
-function mouseDown(e) {
-  zoombox.startX = e.pageX - this.offsetLeft;
-  zoombox.startY = e.pageY - this.offsetTop;
-  dragging = true;
-}
-// Redraw with new zoom co-ordinates
-function mouseUp() {
-  dragging = false;
-  if (!zoombox.h) return; // Ignore single click
-  xoffset = xoffset + width / (zoom_canvas.width / zoombox.startX);
-  yoffset = yoffset + height / (zoom_canvas.height / zoombox.startY);
-  width = width / (zoom_canvas.width / zoombox.w);
-  height = height / (zoom_canvas.height / zoombox.h);
-  ztx.clearRect(0,0,zoom_canvas.width,zoom_canvas.height); // Remove the old zoom box
-  drawFractal(width,height,xoffset,yoffset); // Draw with new zoom level
-  reset_button.style.display = 'block';
-  zoom_label.style.display = 'none';
-}
-// Draw the zoom box if mouse is down
-function mouseMove(e) {
-  if (dragging) {
-    zoombox.w = (e.pageX - this.offsetLeft) - zoombox.startX;
-    if (zoombox.w < 0) return; // Only support drag to right/down for now
-    zoombox.h = zoombox.w / (width/height); // force current ratio
-    ztx.clearRect(0,0,zoom_canvas.width,zoom_canvas.height);
-    ztx.fillRect(zoombox.startX,zoombox.startY,zoombox.w,zoombox.h);
-    ztx.strokeRect(zoombox.startX,zoombox.startY,zoombox.w,zoombox.h);
-  }
-}
-
-// Set up listening for zoom box
-zoom_canvas.addEventListener('mousedown', mouseDown, false);
-zoom_canvas.addEventListener('mouseup', mouseUp, false);
-zoom_canvas.addEventListener('mousemove', mouseMove, false);
-
-function drawFractal(width,height,xoffset,yoffset) {
-  // Draw the fractal
-  // Find a reasonable max iter based on zoom level, starting around 128
-  var max_iter = Math.floor(90 * (1/(height/4)) ** 0.5);
-  for (px=0; px < canvasWidth; px++) {
-    for (py=0; py < canvasHeight; py++) {
-      
-      var x0 = (px / canvasWidth) * width + (xoffset - 2.5);
-      var y0 = (py / canvasHeight) * height + (yoffset - 1);
-      var x = 0;
-      var y = 0;
-      var iter = 0;
-
-      while ((x*x + y*y) < 4 && iter < max_iter) {
-        var x_temp = x*x - y*y + x0;
-        y = 2*x*y + y0;
-        x = x_temp;
-        iter++;
-      }
-      
-      var rgb = hToRgb(iter/max_iter);
-      drawPixel(px, py, rgb[0], rgb[1], rgb[2], 255);
-    } 
-  }
-  ctx.putImageData (canvasData, 0, 0);
-}
-
-function resetFractal(reset_button) {
-    initialiseCoordinates();
-    drawFractal(width,height,xoffset,yoffset);
-    reset_button.style.display = 'none';
-    zoom_label.style.display = 'block';
-}
-reset_button.addEventListener('click', function(){ resetFractal(this); }, false);
-resetFractal(reset_button);
+const fractal = new Fractal()
